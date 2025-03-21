@@ -1,93 +1,98 @@
-# AI Hedge Fund API (金融 AI 對沖基金 API)
+# AI Hedge Fund API
 
-這是一個基於 AI 的對沖基金專案，提供 **API 介面** 供其他應用程式調用，讓開發者能夠透過多位知名投資大師 (如 Warren Buffett、Charlie Munger、Bill Ackman 等) 的投資策略來分析市場，並輔以 AI 進行交易決策。
+## 🚀 項目介紹
+本專案基於 `virattt/ai-hedge-fund` 和 `KRSHH/ritadel`，並進一步擴展，
+**提供 Web API 介面**，可讓其他應用直接調用 AI 分析師的投資建議。
 
-本專案基於 **[virattt/ai-hedge-fund](https://github.com/virattt/ai-hedge-fund)** 及 **[KRSHH/ritadel](https://github.com/KRSHH/ritadel)** 進行開發，重點改進了：
+**主要改動：**
+- ✅ **使用 Python 3.12，棄用 Poetry，改用 Pip 管理依賴**
+- ✅ **內建 Flask API 服務（預設運行於 `6000` 端口）**
+- ✅ **支援多種 LLM（GPT-4o、Claude 3、LLaMA3、Gemini）**
+- ✅ **支援金融數據 API（Alpha Vantage、StockData、Finnhub 等）**
+- ✅ **支援 Docker 部署，可直接 `docker run` 啟動 API 服務**
 
-- ✅ **提供 API 介面**，可供外部應用請求交易決策。
-- ✅ **支持 Docker 部署**，讓開發者可快速構建並運行系統。
-- ✅ **整合多個 LLM (GPT-4o, Claude, Gemini, DeepSeek, LLaMA3)**，提升決策精準度。
-- ✅ **數據來源擴展**，整合金融數據、技術分析、社群情緒分析等多種因子。
-- ✅ **從 Poetry 轉換為 Pip 處理 Python 套件管理**。
+## 📌 環境安裝
 
-## 🚀 功能特色
-
-🔹 **多代理人投資分析系統**：
-- 價值投資：Warren Buffett, Charlie Munger, Ben Graham
-- 成長投資：Cathie Wood, Bill Ackman, Phil Fisher
-- 風險管理：Risk Manager, Portfolio Manager
-- 社群與市場情緒：WSB, Sentiment Analysis, Fundamentals Analysis
-- 技術指標分析：Technical Analysis, Valuation Agent
-
-🔹 **API 服務**
-- 提供 `POST /api/analysis` API，讓用戶調用 AI 交易決策。
-- 可選擇不同投資大師來分析特定股票。
-
-🔹 **Docker 化部署**
-- 提供 `Dockerfile`，可快速建構並啟動服務。
-- 預設 **Python 3.12** 官方映像。
-- API 預設 **6000 端口**。
-
----
-
-## 📌 **安裝與運行方式**
-
-### **1️⃣ 環境需求**
-- **Python 3.12+** 或 **Docker**
-- `pip install -r requirements.txt` 安裝相依套件
-
-### **2️⃣ 本機運行 (Python)**
+### **1️⃣ Clone 本專案**
 ```bash
-# 安裝相依套件
-python -m venv venv
-source venv/bin/activate  # Windows 用戶請使用 venv\Scripts\activate
+git clone https://github.com/tbdavid2019/ai-hedge-fund-API.git
+cd ai-hedge-fund-API
+```
+
+### **2️⃣ 創建虛擬環境 & 安裝依賴**
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Windows 則使用 venv\Scripts\activate
 pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-# 啟動 API 服務
+### **3️⃣ 設定環境變數**
+請在專案根目錄創建 `.env` 檔案，並填入 API Keys：
+
+```ini
+# LLM API Keys（至少設定一個）
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+GROQ_API_KEY=your-groq-api-key
+GEMINI_API_KEY=your-gemini-api-key
+
+# 金融數據 API Keys（至少設定一個）
+ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+STOCKDATA_API_KEY=your-stockdata-key
+FINNHUB_API_KEY=your-finnhub-key
+EODHD_API_KEY=your-eodhd-key
+```
+
+## 🚀 啟動 API 服務
+
+```bash
 python webui2.py --api
 ```
+預設 API 會運行於 `http://localhost:6000`
 
-API 會運行在 `http://localhost:6000`
 
-### **3️⃣ 使用 Docker 運行**
+## 📡 **Docker 部署**
+
+### **1️⃣ 建立 Docker 映像**
 ```bash
-# 建構 Docker 映像
 docker build -t ai-hedge-fund-api .
-
-# 啟動 Docker 容器 (預設 6000 端口)
-docker run -p 6000:6000 ai-hedge-fund-api
 ```
 
----
+### **2️⃣ 啟動容器**
+```bash
+docker run --env-file .env -p 6000:6000 ai-hedge-fund-api
+```
 
-## 📡 **API 調用方式**
+## 🔍 **API 調用方式**
 
-### **使用 `curl` 調用 API**
+### **1️⃣ 股票分析 API**
+
+#### **📥 請求方式**
 ```bash
 curl -X POST "http://localhost:6000/api/analysis" \
      -H "Content-Type: application/json" \
      -d '{
            "tickers": "tsla",
-           "selectedAnalysts": ["ben_graham", "bill_ackman", "cathie_wood", "charlie_munger", "nancy_pelosi", "warren_buffett", "wsb", "technical_analyst", "fundamentals_analyst", "sentiment_analyst", "valuation_analyst"],
+           "selectedAnalysts": ["ben_graham"],
            "modelName": "gpt-4o"
          }'
 ```
 
-### **API 回應範例 (JSON)**
+#### **📤 回應範例**
 ```json
 {
   "analyst_signals": {
     "ben_graham_agent": {
       "tsla": {
         "confidence": 80.0,
-        "reasoning": "Tesla's financial assessment reveals several weaknesses from a Graham perspective. The lack of multi-year EPS data means earnings stability is uncertain, undermining the traditional insistence on proven earnings. The inability to calculate essential valuation metrics like the Graham Number and NCAV suggests it does not meet the margin of safety principle. Furthermore, the absence of dividend data limits the evaluation of Tesla's commitment to shareholder returns. Although the debt ratio is conservative, the overall financials suggest a speculative nature not in alignment with Graham's conservative investment principles.",
+        "reasoning": "Tesla's financial assessment reveals several weaknesses from a Graham perspective...",
         "signal": "bearish"
       }
     },
     "risk_management_agent": {
       "tsla": {
-        "current_price": 236.25999450683594,
+        "current_price": 236.25,
         "reasoning": {
           "available_cash": 100000.0,
           "current_position": 0.0,
@@ -104,7 +109,7 @@ curl -X POST "http://localhost:6000/api/analysis" \
       "action": "short",
       "confidence": 80.0,
       "quantity": 84,
-      "reasoning": "The analysis by the ben_graham_agent indicates a strong bearish signal with 80% confidence. Given the high confidence and the fact that there are no current positions, the decision is to short TSLA up to the maximum allowable quantity of 84 shares. This respects margin requirements as there are no constraints on the given margin at this time."
+      "reasoning": "The analysis by the ben_graham_agent indicates a strong bearish signal..."
     }
   }
 }
@@ -112,48 +117,79 @@ curl -X POST "http://localhost:6000/api/analysis" \
 
 ---
 
-# 📖 **AI Hedge Fund API (English)**
+# AI Hedge Fund API (English)
 
-This is an AI-driven hedge fund API that allows applications to analyze stock market data using multiple AI agents based on the investing philosophies of legendary investors like Warren Buffett, Charlie Munger, and Bill Ackman.
+## 🚀 Project Overview
+This project extends `virattt/ai-hedge-fund` and `KRSHH/ritadel`,
+providing a **RESTful API** for external applications to query AI-driven investment insights.
 
-This project is based on **[virattt/ai-hedge-fund](https://github.com/virattt/ai-hedge-fund)** and **[KRSHH/ritadel](https://github.com/KRSHH/ritadel)**, with key improvements:
+**Major Improvements:**
+- ✅ **Python 3.12 (Switched from Poetry to Pip)**
+- ✅ **Built-in Flask API (default port: `6000`)**
+- ✅ **Supports multiple LLMs (GPT-4o, Claude 3, LLaMA3, Gemini)**
+- ✅ **Financial Data APIs (Alpha Vantage, StockData, Finnhub, etc.)**
+- ✅ **Docker-ready, deploy via `docker run`**
 
-- ✅ **Provides an API for external applications**
-- ✅ **Supports Docker deployment for easy setup**
-- ✅ **Integrates multiple LLMs (GPT-4o, Claude, Gemini, DeepSeek, LLaMA3)**
-- ✅ **Expanded financial data sources**
-- ✅ **Migrated from Poetry to Pip for dependency management**
-- ✅ **Uses Python 3.12 as the default runtime**
-- ✅ **API default port is 6000**
+## 📌 Installation
 
-## 📌 **Installation & Usage**
-
-### **1️⃣ Requirements**
-- **Python 3.12+** or **Docker**
-- Install dependencies via `pip install -r requirements.txt`
-
-### **2️⃣ Running Locally (Python)**
+### **1️⃣ Clone the Repository**
 ```bash
-# Install dependencies
-python -m venv venv
-source venv/bin/activate  # Windows: use venv\Scripts\activate
+git clone https://github.com/tbdavid2019/ai-hedge-fund-API.git
+cd ai-hedge-fund-API
+```
+
+### **2️⃣ Set Up Virtual Environment & Install Dependencies**
+```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+```
 
-# Start API server
+### **3️⃣ Configure `.env` File**
+```ini
+OPENAI_API_KEY=your-openai-api-key
+ANTHROPIC_API_KEY=your-anthropic-api-key
+GROQ_API_KEY=your-groq-api-key
+GEMINI_API_KEY=your-gemini-api-key
+ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
+STOCKDATA_API_KEY=your-stockdata-key
+FINNHUB_API_KEY=your-finnhub-key
+EODHD_API_KEY=your-eodhd-key
+```
+
+## 🚀 Start API Server
+```bash
 python webui2.py --api
 ```
-API runs on `http://localhost:6000`
+(Default API runs on `http://localhost:6000`)
 
-### **3️⃣ Running with Docker**
+## 📡 Docker Deployment
+
+### **1️⃣ Build Docker Image**
 ```bash
-# Build Docker Image
 docker build -t ai-hedge-fund-api .
-
-# Run Docker Container (Default port: 6000)
-docker run -p 6000:6000 ai-hedge-fund-api
 ```
 
----
+### **2️⃣ Run Container**
+```bash
+docker run --env-file .env -p 6000:6000 ai-hedge-fund-api
+```
 
+## 🔍 API Usage
+
+### **1️⃣ Stock Analysis API**
+#### **📥 Request**
+```bash
+curl -X POST "http://localhost:6000/api/analysis" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "tickers": "tsla",
+           "selectedAnalysts": ["ben_graham"],
+           "modelName": "gpt-4o"
+         }'
+```
+
+#### **📤 Response Example** *(Real-time financial data required!)*
+_(See JSON example in Chinese section)_
 
