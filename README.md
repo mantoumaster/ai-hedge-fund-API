@@ -11,6 +11,10 @@
 - ✅ **支援金融數據 API（Alpha Vantage、StockData、Finnhub 等）**
 - ✅ **支援 Docker 部署，可直接 `docker run` 啟動 API 服務**
 
+網頁版
+<img width="1516" alt="image" src="https://github.com/user-attachments/assets/e2d443f9-0a48-44ee-a9f4-a61bdfe60e96" />
+
+
 ## 📌 環境安裝
 
 ### **1️⃣ Clone 本專案**
@@ -129,6 +133,9 @@ providing a **RESTful API** for external applications to query AI-driven investm
 - ✅ **Supports multiple LLMs (GPT-4o, Claude 3, LLaMA3, Gemini)**
 - ✅ **Financial Data APIs (Alpha Vantage, StockData, Finnhub, etc.)**
 - ✅ **Docker-ready, deploy via `docker run`**
+
+Web
+<img width="1516" alt="image" src="https://github.com/user-attachments/assets/e2d443f9-0a48-44ee-a9f4-a61bdfe60e96" />
 
 ## 📌 Installation
 
