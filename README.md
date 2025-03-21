@@ -200,3 +200,7 @@ curl -X POST "http://localhost:6000/api/analysis" \
 #### **📤 Response Example** *(Real-time financial data required!)*
 _(See JSON example in Chinese section)_
 
+
+<img width="1601" alt="image" src="https://github.com/user-attachments/assets/0c2157e0-071c-4c9d-a15a-04c02912242a" />
+
+
