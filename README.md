@@ -11,8 +11,12 @@
 - ✅ **支援金融數據 API（Alpha Vantage、StockData、Finnhub 等）**
 - ✅ **支援 Docker 部署，可直接 `docker run` 啟動 API 服務**
 
-網頁版
+網頁版 Web Page
 <img width="1516" alt="image" src="https://github.com/user-attachments/assets/e2d443f9-0a48-44ee-a9f4-a61bdfe60e96" />
+
+telegram bot 
+https://github.com/tbdavid2019/telegram-bot-stock2
+![image](https://github.com/user-attachments/assets/26d173d0-cc64-4d11-b70b-7735a07c30e0)
 
 
 ## 📌 環境安裝
