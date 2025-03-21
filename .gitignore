@@ -41,8 +41,6 @@ Thumbs.db
 # graph
 *.png
 
-# Txt files
-*.txt
 
 #node
 /webui/.next
