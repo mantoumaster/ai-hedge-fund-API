@@ -1,0 +1,28 @@
+# 忽略虛擬環境
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Poetry 和 Pipenv 相關
+poetry.lock
+Pipfile
+Pipfile.lock
+
+# 忽略 git 相關
+.git/
+.gitignore
+
+# Docker 內不需要 VSCode 設定檔
+.vscode/
+.idea/
+*.log
+
+# 其他 cache 和系統檔案
+.DS_Store
+*.swp
+
+myenv/
+
+.env
