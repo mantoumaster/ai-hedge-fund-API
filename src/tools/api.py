@@ -613,6 +613,7 @@ def search_line_items(
                 "goodwill_and_intangible_assets": (None, None),  # Will calculate
                 "outstanding_shares": (None, None),  # Will get from info
                 "dividends_and_other_cash_distributions": ("Dividends Paid", cash_flow),
+                "earnings_per_share": (None, None),  # Will get from info["trailingEPS"]
             }
             
             # Fill in values for each requested line item
@@ -636,12 +637,16 @@ def search_line_items(
                         revenue = get_value_from_df(income_stmt, "Total Revenue", date)
                         if op_income and revenue:
                             line_item_data[item] = op_income / revenue
+                        else:
+                            line_item_data[item] = None
                     
                     elif item == "free_cash_flow":
                         ocf = get_value_from_df(cash_flow, "Operating Cash Flow", date)
                         capex = get_value_from_df(cash_flow, "Capital Expenditure", date)
                         if ocf and capex:
                             line_item_data[item] = ocf + capex  # CapEx is usually negative
+                        else:
+                            line_item_data[item] = None
                     
                     elif item == "working_capital":
                         current_assets = get_value_from_df(balance_sheet, "Current Assets", date)
@@ -672,6 +677,17 @@ def search_line_items(
                         total_equity = get_value_from_df(balance_sheet, "Stockholders Equity", date)
                         if total_debt and total_equity and total_equity > 0:
                             line_item_data[item] = total_debt / total_equity
+                    
+                    elif item == "earnings_per_share":
+                        # 首先嘗試從 info 字典中獲取 trailingEPS
+                        eps = info.get("trailingEPS")
+                        if eps is None:
+                            # 如果 info 中沒有，嘗試從 income_stmt 中獲取
+                            eps = get_value_from_df(income_stmt, "Diluted EPS", date)
+                        if eps is None:
+                            # 如果還是沒有，嘗試從 income_stmt 中獲取 Basic EPS
+                            eps = get_value_from_df(income_stmt, "Basic EPS", date)
+                        line_item_data[item] = eps
             
             # Create the LineItem object
             result_items.append(LineItem(**line_item_data))

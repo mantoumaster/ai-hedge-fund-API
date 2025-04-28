@@ -85,7 +85,7 @@ def valuation_agent(state: AgentState):
         progress.update_status("valuation_agent", ticker, "Calculating DCF value")
         # DCF Valuation
         dcf_value = calculate_intrinsic_value(
-            free_cash_flow=current_financial_line_item.free_cash_flow,
+            free_cash_flow=getattr(current_financial_line_item, 'free_cash_flow', 0),
             growth_rate=metrics.earnings_growth,
             discount_rate=0.10,
             terminal_growth_rate=0.03,

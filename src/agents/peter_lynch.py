@@ -196,7 +196,8 @@ def analyze_lynch_growth(financial_line_items: list) -> dict:
         details.append("Not enough revenue data to assess growth.")
 
     # 2) EPS Growth
-    eps_values = [fi.earnings_per_share for fi in financial_line_items if fi.earnings_per_share is not None]
+    eps_values = [getattr(fi, 'earnings_per_share', None) for fi in financial_line_items]
+    eps_values = [eps for eps in eps_values if eps is not None]
     if len(eps_values) >= 2:
         latest_eps = eps_values[0]
         older_eps = eps_values[-1]
