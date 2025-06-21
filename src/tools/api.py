@@ -109,10 +109,19 @@ def get_prices(ticker: str, start_date: str, end_date: str, is_crypto: bool = Fa
     if is_crypto:
         return get_crypto_prices(ticker, start_date, end_date)
     
+    # Format ticker for different APIs
+    yf_ticker_str = _format_ticker_for_yfinance(ticker)
+    sd_ticker_str = ticker
+    av_ticker_str = ticker
+
+    # StockData/AlphaVantage symbols differ slightly for TW stocks
+    if "." not in ticker and ticker.isdigit():
+        sd_ticker_str = f"{ticker}.TWSE"  # StockData uses .TWSE
+        av_ticker_str = f"{ticker}.TW"
+    
     # Try primary source: Yahoo Finance
     try:
-        # Get the data from Yahoo Finance
-        yf_ticker = yf.Ticker(formatted_ticker)
+        yf_ticker = yf.Ticker(yf_ticker_str)
         df = yf_ticker.history(start=start_date, end=end_date)
         
         if not df.empty:
@@ -139,7 +148,7 @@ def get_prices(ticker: str, start_date: str, end_date: str, is_crypto: bool = Fa
     try:
         api_keys = get_api_keys()
         if api_key := api_keys.get("stockdata"):
-            url = f"https://api.stockdata.org/v1/data/eod?symbols={ticker}&date_from={start_date}&date_to={end_date}&api_key={api_key}"
+            url = f"https://api.stockdata.org/v1/data/eod?symbols={sd_ticker_str}&date_from={start_date}&date_to={end_date}&api_key={api_key}"
             response = requests.get(url)
             
             if response.status_code == 200:
@@ -167,7 +176,7 @@ def get_prices(ticker: str, start_date: str, end_date: str, is_crypto: bool = Fa
     try:
         api_keys = get_api_keys()
         if api_key := api_keys.get("alpha_vantage"):
-            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={ticker}&outputsize=full&apikey={api_key}"
+            url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={av_ticker_str}&outputsize=full&apikey={api_key}"
             response = requests.get(url)
             
             if response.status_code == 200:
@@ -312,6 +321,8 @@ def get_financial_metrics(
     if is_crypto:
         return get_crypto_metrics(ticker, end_date, period, limit)
     
+    yf_ticker_str = _format_ticker_for_yfinance(ticker)
+    
     # Check cache first
     if cached_data := _cache.get_financial_metrics(ticker):
         # Filter cached data by date and limit
@@ -322,9 +333,7 @@ def get_financial_metrics(
 
     # If not in cache or insufficient data, fetch from Yahoo Finance
     try:
-        # Format ticker for yfinance
-        formatted_ticker = _format_ticker_for_yfinance(ticker)
-        yf_ticker = yf.Ticker(formatted_ticker)
+        yf_ticker = yf.Ticker(yf_ticker_str)
         
         # Get various metrics
         info = yf_ticker.info
@@ -610,10 +619,10 @@ def search_line_items(
     if is_crypto:
         return search_crypto_line_items(ticker, line_items, end_date, period, limit)
     
+    yf_ticker_str = _format_ticker_for_yfinance(ticker)
+    
     try:
-        # Format ticker for yfinance
-        formatted_ticker = _format_ticker_for_yfinance(ticker)
-        yf_ticker = yf.Ticker(formatted_ticker)
+        yf_ticker = yf.Ticker(yf_ticker_str)
         
         # Get financial statements
         income_stmt = yf_ticker.income_stmt
@@ -889,6 +898,11 @@ def get_insider_trades(
     limit: int = 1000,
 ) -> list[InsiderTrade]:
     """Fetch insider trades from SEC API or Alpha Vantage."""
+    # Insider trading data is typically only available for US-listed stocks
+    if "." in ticker or ticker.isdigit():
+        print(f"Insider trading data is not available for non-US stock {ticker}")
+        return []
+
     # Check cache first
     if cached_data := _cache.get_insider_trades(ticker):
         # Filter cached data by date range
@@ -994,6 +1008,8 @@ def get_company_news(
     if is_crypto:
         return get_crypto_news(ticker, end_date, start_date, limit)
     
+    yf_ticker_str = _format_ticker_for_yfinance(ticker)
+    
     # Check cache first
     if cached_data := _cache.get_company_news(ticker):
         # Filter cached data by date range
@@ -1011,8 +1027,7 @@ def get_company_news(
         start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else end_dt - timedelta(days=90)
         
         # Get news from Yahoo Finance
-        formatted_ticker = _format_ticker_for_yfinance(ticker)
-        yf_ticker = yf.Ticker(formatted_ticker)
+        yf_ticker = yf.Ticker(yf_ticker_str)
         news_data = yf_ticker.news
         
         # Process the news
