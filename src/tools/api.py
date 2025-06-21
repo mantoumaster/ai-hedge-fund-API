@@ -37,6 +37,66 @@ def get_api_keys():
         "cryptocompare": os.environ.get("CRYPTOCOMPARE_API_KEY"),
     }
 
+def _format_ticker_for_yfinance(ticker: str) -> str:
+    """
+    根據股票代號自動判斷並轉換為 yfinance 套件所需的正確格式
+    
+    Args:
+        ticker: 原始股票代號
+        
+    Returns:
+        格式化後的股票代號
+        
+    Examples:
+        - 台股: "2330" -> "2330.TW"
+        - 港股: "0001.hk" -> "0001.HK", "1" -> "0001.HK"
+        - 中國股市: "600519" -> "600519.SS", "000001" -> "000001.SZ"
+        - 美股: "AAPL" -> "AAPL" (不變)
+        - 已有後綴: "AAPL.US" -> "AAPL.US" (不變)
+    """
+    # 如果已經包含點號，直接使用（但處理港股的特殊情況）
+    if '.' in ticker:
+        if ticker.lower().endswith('.hk'):
+            # 港股：將 .hk 轉換為 .HK
+            base_ticker = ticker[:-3]
+            # 確保港股代號為4位數，不足的前面補0
+            if base_ticker.isdigit():
+                base_ticker = base_ticker.zfill(4)
+            return f"{base_ticker}.HK"
+        else:
+            # 其他已有後綴的直接返回
+            return ticker
+    
+    # 純數字代號的處理
+    if ticker.isdigit():
+        ticker_len = len(ticker)
+        ticker_int = int(ticker)
+        
+        # 台股：4位數字代號
+        if ticker_len == 4:
+            return f"{ticker}.TW"
+        
+        # 港股：1-4位數字代號（香港股票代號範圍通常是1-9999）
+        if ticker_len <= 4 and ticker_int <= 9999:
+            # 港股代號補齊為4位數
+            formatted_ticker = ticker.zfill(4)
+            return f"{formatted_ticker}.HK"
+        
+        # 中國股市：6位數字代號
+        if ticker_len == 6:
+            # 上海證券交易所：以6開頭
+            if ticker.startswith('6'):
+                return f"{ticker}.SS"
+            # 深圳證券交易所：以0、2、3開頭
+            elif ticker.startswith(('0', '2', '3')):
+                return f"{ticker}.SZ"
+            else:
+                # 其他6位數代號，預設為上海
+                return f"{ticker}.SS"
+    
+    # 字母代號（美股等）直接返回
+    return ticker
+
 def get_prices(ticker: str, start_date: str, end_date: str, is_crypto: bool = False) -> list[Price]:
     """Fetch price data with multi-source fallback strategy."""
     # Check cache first
@@ -52,7 +112,7 @@ def get_prices(ticker: str, start_date: str, end_date: str, is_crypto: bool = Fa
     # Try primary source: Yahoo Finance
     try:
         # Get the data from Yahoo Finance
-        yf_ticker = yf.Ticker(ticker)
+        yf_ticker = yf.Ticker(formatted_ticker)
         df = yf_ticker.history(start=start_date, end=end_date)
         
         if not df.empty:
@@ -262,7 +322,9 @@ def get_financial_metrics(
 
     # If not in cache or insufficient data, fetch from Yahoo Finance
     try:
-        yf_ticker = yf.Ticker(ticker)
+        # Format ticker for yfinance
+        formatted_ticker = _format_ticker_for_yfinance(ticker)
+        yf_ticker = yf.Ticker(formatted_ticker)
         
         # Get various metrics
         info = yf_ticker.info
@@ -549,7 +611,9 @@ def search_line_items(
         return search_crypto_line_items(ticker, line_items, end_date, period, limit)
     
     try:
-        yf_ticker = yf.Ticker(ticker)
+        # Format ticker for yfinance
+        formatted_ticker = _format_ticker_for_yfinance(ticker)
+        yf_ticker = yf.Ticker(formatted_ticker)
         
         # Get financial statements
         income_stmt = yf_ticker.income_stmt
@@ -947,7 +1011,8 @@ def get_company_news(
         start_dt = datetime.strptime(start_date, '%Y-%m-%d') if start_date else end_dt - timedelta(days=90)
         
         # Get news from Yahoo Finance
-        yf_ticker = yf.Ticker(ticker)
+        formatted_ticker = _format_ticker_for_yfinance(ticker)
+        yf_ticker = yf.Ticker(formatted_ticker)
         news_data = yf_ticker.news
         
         # Process the news
@@ -1077,7 +1142,9 @@ def get_market_cap(
 ) -> float | None:
     """Fetch market cap from Yahoo Finance."""
     try:
-        yf_ticker = yf.Ticker(ticker)
+        # Format ticker for yfinance
+        formatted_ticker = _format_ticker_for_yfinance(ticker)
+        yf_ticker = yf.Ticker(formatted_ticker)
         info = yf_ticker.info
         
         # Get market cap directly
