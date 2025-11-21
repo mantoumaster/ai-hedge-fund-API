@@ -1,5 +1,5 @@
-# 使用 Python 3.12 官方映像
-FROM python:3.12
+# 使用 Python 3.13 官方映像
+FROM python:3.13
 
 # 設置工作目錄
 WORKDIR /app
@@ -10,8 +10,8 @@ COPY . .
 # 建立虛擬環境並安裝依賴
 RUN python -m venv venv && \
     . venv/bin/activate && \
-    pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install --upgrade pip --retries 5 --timeout 300 -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip install -r requirements.txt --retries 5 --timeout 300 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 設定環境變數
 ENV PYTHONUNBUFFERED=1
