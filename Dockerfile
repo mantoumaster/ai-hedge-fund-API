@@ -10,8 +10,8 @@ COPY . .
 # 建立虛擬環境並安裝依賴
 RUN python -m venv venv && \
     . venv/bin/activate && \
-    pip install --upgrade pip --retries 5 --timeout 300 -i https://pypi.tuna.tsinghua.edu.cn/simple && \
-    pip install -r requirements.txt --retries 5 --timeout 300 -i https://pypi.tuna.tsinghua.edu.cn/simple
+    pip install --upgrade pip --retries 5 --timeout 300 && \
+    pip install -r requirements.txt --retries 5 --timeout 300
 
 # 設定環境變數
 ENV PYTHONUNBUFFERED=1
