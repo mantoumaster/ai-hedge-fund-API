@@ -645,6 +645,12 @@ def search_line_items(
     
     yf_ticker_str = _format_ticker_for_yfinance(ticker)
     
+    # Normalize end_date to string format
+    if isinstance(end_date, datetime):
+        end_date_str = end_date.strftime('%Y-%m-%d')
+    else:
+        end_date_str = str(end_date)[:10]  # Ensure it's YYYY-MM-DD format
+    
     try:
         yf_ticker = yf.Ticker(yf_ticker_str)
         
@@ -661,12 +667,27 @@ def search_line_items(
         # Use info for some common items
         info = yf_ticker.info
         
-        # Get all available dates from the statements
-        all_dates = set()
-        for df in [income_stmt, balance_sheet, cash_flow, 
-                   q_income_stmt, q_balance_sheet, q_cash_flow]:
-            if hasattr(df, 'columns'):
-                all_dates.update(df.columns)
+        # Helper function to get value with fallback to quarterly data
+        def get_value_with_fallback(annual_df, quarterly_df, field_name, date):
+            """Try annual data first, then fall back to quarterly data."""
+            value = get_value_from_df(annual_df, field_name, date)
+            if value is None and quarterly_df is not None and hasattr(quarterly_df, 'empty') and not quarterly_df.empty:
+                value = get_value_from_df(quarterly_df, field_name, date)
+            return value
+        
+        # Use only annual data dates for consistency (if period is annual)
+        # For quarterly or TTM, include quarterly dates
+        if period == "annual":
+            all_dates = set()
+            for df in [income_stmt, balance_sheet, cash_flow]:
+                if df is not None and hasattr(df, 'columns') and not df.empty:
+                    all_dates.update(df.columns)
+        else:
+            all_dates = set()
+            for df in [income_stmt, balance_sheet, cash_flow, 
+                       q_income_stmt, q_balance_sheet, q_cash_flow]:
+                if df is not None and hasattr(df, 'columns') and not df.empty:
+                    all_dates.update(df.columns)
                 
         # Sort dates in descending order
         sorted_dates = sorted(all_dates, reverse=True)
@@ -678,7 +699,7 @@ def search_line_items(
                 break
                 
             report_date = date.strftime('%Y-%m-%d')
-            if report_date > end_date:
+            if report_date > end_date_str:
                 continue
                 
             # Create a base line item with required fields
@@ -726,37 +747,46 @@ def search_line_items(
                 if item in line_item_mapping:
                     field_name, source_df = line_item_mapping[item]
                     
+                    # Determine quarterly fallback for source_df
+                    q_source_df = None
+                    if source_df is income_stmt:
+                        q_source_df = q_income_stmt
+                    elif source_df is balance_sheet:
+                        q_source_df = q_balance_sheet
+                    elif source_df is cash_flow:
+                        q_source_df = q_cash_flow
+                    
                     # Direct mapping to a field
                     if field_name and source_df is not None:
-                        line_item_data[item] = get_value_from_df(source_df, field_name, date)
+                        line_item_data[item] = get_value_with_fallback(source_df, q_source_df, field_name, date)
                     
                     # Special calculations
                     elif item == "gross_margin":
-                        gross_profit = get_value_from_df(income_stmt, "Gross Profit", date)
-                        revenue = get_value_from_df(income_stmt, "Total Revenue", date)
+                        gross_profit = get_value_with_fallback(income_stmt, q_income_stmt, "Gross Profit", date)
+                        revenue = get_value_with_fallback(income_stmt, q_income_stmt, "Total Revenue", date)
                         if gross_profit and revenue:
                             line_item_data[item] = gross_profit / revenue
                     
                     elif item == "operating_margin":
-                        op_income = get_value_from_df(income_stmt, "Operating Income", date)
-                        revenue = get_value_from_df(income_stmt, "Total Revenue", date)
+                        op_income = get_value_with_fallback(income_stmt, q_income_stmt, "Operating Income", date)
+                        revenue = get_value_with_fallback(income_stmt, q_income_stmt, "Total Revenue", date)
                         if op_income and revenue:
                             line_item_data[item] = op_income / revenue
                         else:
                             line_item_data[item] = None
                     
                     elif item == "free_cash_flow":
-                        ocf = get_value_from_df(cash_flow, "Operating Cash Flow", date)
-                        capex = get_value_from_df(cash_flow, "Capital Expenditure", date)
+                        ocf = get_value_with_fallback(cash_flow, q_cash_flow, "Operating Cash Flow", date)
+                        capex = get_value_with_fallback(cash_flow, q_cash_flow, "Capital Expenditure", date)
                         if ocf and capex:
                             line_item_data[item] = ocf + capex  # CapEx is usually negative
                         elif ocf:
                             line_item_data[item] = ocf
                     
                     elif item == "earnings_per_share":
-                        net_income = get_value_from_df(income_stmt, "Net Income", date)
+                        net_income = get_value_with_fallback(income_stmt, q_income_stmt, "Net Income", date)
                         shares_outstanding = info.get("sharesOutstanding")
-                        eps_from_income = get_value_from_df(income_stmt, "Diluted EPS", date) or get_value_from_df(income_stmt, "Basic EPS", date)
+                        eps_from_income = get_value_with_fallback(income_stmt, q_income_stmt, "Diluted EPS", date) or get_value_with_fallback(income_stmt, q_income_stmt, "Basic EPS", date)
                         if eps_from_income is not None:
                             line_item_data[item] = eps_from_income
                         elif net_income and shares_outstanding:
@@ -765,24 +795,24 @@ def search_line_items(
                             line_item_data[item] = None
 
                     elif item == "ebit":
-                        ebit = get_value_from_df(income_stmt, "Ebit", date) or get_value_from_df(income_stmt, "EBIT", date)
+                        ebit = get_value_with_fallback(income_stmt, q_income_stmt, "Ebit", date) or get_value_with_fallback(income_stmt, q_income_stmt, "EBIT", date)
                         if ebit is not None:
                             line_item_data[item] = ebit
 
                     elif item == "ebitda":
-                        ebitda = get_value_from_df(income_stmt, "Ebitda", date) or get_value_from_df(income_stmt, "EBITDA", date)
+                        ebitda = get_value_with_fallback(income_stmt, q_income_stmt, "Ebitda", date) or get_value_with_fallback(income_stmt, q_income_stmt, "EBITDA", date)
                         if ebitda is not None:
                             line_item_data[item] = ebitda
                     
                     elif item == "working_capital":
-                        current_assets = get_value_from_df(balance_sheet, "Current Assets", date)
-                        current_liabilities = get_value_from_df(balance_sheet, "Current Liabilities", date)
+                        current_assets = get_value_with_fallback(balance_sheet, q_balance_sheet, "Current Assets", date)
+                        current_liabilities = get_value_with_fallback(balance_sheet, q_balance_sheet, "Current Liabilities", date)
                         if current_assets and current_liabilities:
                             line_item_data[item] = current_assets - current_liabilities
                     
                     elif item == "goodwill_and_intangible_assets":
-                        goodwill = get_value_from_df(balance_sheet, "Goodwill", date)
-                        intangibles = get_value_from_df(balance_sheet, "Intangible Assets", date)
+                        goodwill = get_value_with_fallback(balance_sheet, q_balance_sheet, "Goodwill", date)
+                        intangibles = get_value_with_fallback(balance_sheet, q_balance_sheet, "Intangible Assets", date)
                         if goodwill or intangibles:
                             line_item_data[item] = (goodwill or 0) + (intangibles or 0)
                     
@@ -790,17 +820,17 @@ def search_line_items(
                         line_item_data[item] = info.get("sharesOutstanding")
                     
                     elif item == "return_on_invested_capital":
-                        net_income = get_value_from_df(income_stmt, "Net Income", date)
-                        total_equity = get_value_from_df(balance_sheet, "Stockholders Equity", date)
-                        total_debt = get_value_from_df(balance_sheet, "Total Debt", date)
+                        net_income = get_value_with_fallback(income_stmt, q_income_stmt, "Net Income", date)
+                        total_equity = get_value_with_fallback(balance_sheet, q_balance_sheet, "Stockholders Equity", date)
+                        total_debt = get_value_with_fallback(balance_sheet, q_balance_sheet, "Total Debt", date)
                         if net_income and (total_equity or total_debt):
                             invested_capital = (total_equity or 0) + (total_debt or 0)
                             if invested_capital > 0:
                                 line_item_data[item] = net_income / invested_capital
                     
                     elif item == "debt_to_equity":
-                        total_debt = get_value_from_df(balance_sheet, "Total Debt", date)
-                        total_equity = get_value_from_df(balance_sheet, "Stockholders Equity", date)
+                        total_debt = get_value_with_fallback(balance_sheet, q_balance_sheet, "Total Debt", date)
+                        total_equity = get_value_with_fallback(balance_sheet, q_balance_sheet, "Stockholders Equity", date)
                         if total_debt and total_equity and total_equity > 0:
                             line_item_data[item] = total_debt / total_equity
                     
@@ -809,10 +839,10 @@ def search_line_items(
                         eps = info.get("trailingEPS")
                         if eps is None:
                             # 如果 info 中沒有，嘗試從 income_stmt 中獲取
-                            eps = get_value_from_df(income_stmt, "Diluted EPS", date)
+                            eps = get_value_with_fallback(income_stmt, q_income_stmt, "Diluted EPS", date)
                         if eps is None:
                             # 如果還是沒有，嘗試從 income_stmt 中獲取 Basic EPS
-                            eps = get_value_from_df(income_stmt, "Basic EPS", date)
+                            eps = get_value_with_fallback(income_stmt, q_income_stmt, "Basic EPS", date)
                         line_item_data[item] = eps
             
             # Create the LineItem object

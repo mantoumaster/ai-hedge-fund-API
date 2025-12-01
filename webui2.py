@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "src")))
 import json
 import threading
 import traceback
+import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sock import Sock
@@ -16,6 +17,11 @@ from src.main import run_hedge_fund
 # 加載 .env 環境變數
 load_dotenv()
 
+# Discord Webhook 設定
+# 預設關閉，需在 .env 中設定 DISCORD_WEBHOOK_ENABLED=true 才會啟用
+DISCORD_WEBHOOK_ENABLED = os.environ.get("DISCORD_WEBHOOK_ENABLED", "false").lower() == "true"
+DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
+
 # 設置 Flask 伺服器
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # 允許跨域請求
@@ -23,6 +29,107 @@ sock = Sock(app)
 
 # WebSocket 客戶端列表
 websocket_clients = []
+
+def send_discord_notification(tickers, result, analysis_date):
+    """發送分析結果到 Discord"""
+    # 檢查是否啟用 Discord 通知
+    if not DISCORD_WEBHOOK_ENABLED:
+        return
+    
+    if not DISCORD_WEBHOOK_URL:
+        print("[Discord] DISCORD_WEBHOOK_URL 未設定，跳過通知")
+        return
+    
+    try:
+        # 構建 Discord Embed 訊息
+        embeds = []
+        
+        # 主要標題 Embed
+        main_embed = {
+            "title": "🤖 AI Hedge Fund 分析報告",
+            "description": f"**分析日期:** {analysis_date}\n**標的:** {', '.join(tickers)}",
+            "color": 0x00ff00,  # 綠色
+            "timestamp": datetime.utcnow().isoformat(),
+            "footer": {
+                "text": "AI Hedge Fund API"
+            }
+        }
+        embeds.append(main_embed)
+        
+        # 決策結果 Embed
+        if "decisions" in result:
+            for ticker, decision in result["decisions"].items():
+                action = decision.get("action", "N/A").upper()
+                confidence = decision.get("confidence", 0)
+                quantity = decision.get("quantity", 0)
+                reasoning = decision.get("reasoning", "N/A")
+                
+                # 根據動作設定顏色
+                if action == "BUY":
+                    color = 0x00ff00  # 綠色
+                    emoji = "🟢"
+                elif action == "SELL" or action == "SHORT":
+                    color = 0xff0000  # 紅色
+                    emoji = "🔴"
+                else:
+                    color = 0xffff00  # 黃色
+                    emoji = "🟡"
+                
+                decision_embed = {
+                    "title": f"{emoji} {ticker} - {action}",
+                    "fields": [
+                        {"name": "信心度", "value": f"{confidence}%", "inline": True},
+                        {"name": "數量", "value": str(quantity), "inline": True},
+                        {"name": "分析理由", "value": reasoning[:1000] if len(reasoning) > 1000 else reasoning, "inline": False}
+                    ],
+                    "color": color
+                }
+                embeds.append(decision_embed)
+        
+        # 分析師信號摘要 Embed
+        if "analyst_signals" in result:
+            signals_summary = []
+            for agent_name, signals in result["analyst_signals"].items():
+                if agent_name == "risk_management_agent":
+                    continue
+                for ticker, signal_data in signals.items():
+                    signal = signal_data.get("signal", "N/A")
+                    conf = signal_data.get("confidence", 0)
+                    
+                    if signal == "bullish":
+                        emoji = "🟢"
+                    elif signal == "bearish":
+                        emoji = "🔴"
+                    else:
+                        emoji = "🟡"
+                    
+                    agent_display = agent_name.replace("_agent", "").replace("_", " ").title()
+                    signals_summary.append(f"{emoji} **{agent_display}**: {signal} ({conf}%)")
+            
+            if signals_summary:
+                signals_embed = {
+                    "title": "📊 分析師信號摘要",
+                    "description": "\n".join(signals_summary[:15]),  # 限制顯示前15個
+                    "color": 0x0099ff
+                }
+                embeds.append(signals_embed)
+        
+        # 發送到 Discord
+        payload = {
+            "username": "AI Hedge Fund",
+            "avatar_url": "https://cdn-icons-png.flaticon.com/512/2103/2103633.png",
+            "embeds": embeds[:10]  # Discord 限制最多10個 embeds
+        }
+        
+        response = requests.post(DISCORD_WEBHOOK_URL, json=payload, timeout=10)
+        
+        if response.status_code == 204:
+            print(f"[Discord] 通知發送成功")
+        else:
+            print(f"[Discord] 通知發送失敗: {response.status_code} - {response.text}")
+            
+    except Exception as e:
+        print(f"[Discord] 發送通知時發生錯誤: {str(e)}")
 
 def broadcast_log(message, level="info"):
     log_data = {"level": level, "message": message}
@@ -68,6 +175,10 @@ def run_analysis():
         )
 
         broadcast_log("Analysis completed successfully", "success")
+        
+        # 發送 Discord 通知
+        send_discord_notification(ticker_list, result, end_date)
+        
         return jsonify(result)
 
     except Exception as e:

@@ -75,6 +75,9 @@ class LineItem(BaseModel):
     model_config = {"extra": "allow"}
 
     def __getattr__(self, item):
+        # First check if the attribute exists in model_extra (for dynamically added fields)
+        if hasattr(self, 'model_extra') and self.model_extra and item in self.model_extra:
+            return self.model_extra[item]
         # Return None for missing dynamic attributes to keep agents resilient to sparse data
         return None
 

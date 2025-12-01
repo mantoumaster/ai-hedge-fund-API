@@ -51,7 +51,32 @@ ALPHA_VANTAGE_API_KEY=your-alpha-vantage-key
 STOCKDATA_API_KEY=your-stockdata-key
 FINNHUB_API_KEY=your-finnhub-key
 EODHD_API_KEY=your-eodhd-key
+
+# Discord Webhook（可選，用於推送分析結果通知）
+# 預設關閉，設為 true 啟用
+DISCORD_WEBHOOK_ENABLED=false
+DISCORD_WEBHOOK_URL=your-discord-webhook-url
 ```
+
+## 📢 Discord 通知功能
+
+本專案支援將分析結果自動推送到 Discord 頻道（**預設關閉**）：
+
+### **啟用方式**
+1. 在 Discord 頻道設定中建立 Webhook（Server Settings → Integrations → Webhooks）
+2. 在 `.env` 檔案中設定：
+   ```ini
+   DISCORD_WEBHOOK_ENABLED=true
+   DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url
+   ```
+3. 重新啟動服務，每次分析完成後結果會自動推送到指定的 Discord 頻道
+
+### **通知內容包含**
+- 📅 分析日期
+- 📈 分析標的
+- 🎯 投資決策（買入/賣出/持有）
+- 💯 信心度
+- 📊 各分析師信號摘要
 
 ## 🚀 啟動 API 服務
 
