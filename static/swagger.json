@@ -1,0 +1,289 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "AI Hedge Fund API",
+    "description": "AI 驅動的投資分析 API，提供多位傳奇投資大師風格的股票分析建議。",
+    "version": "1.0.0",
+    "contact": {
+      "name": "AI Hedge Fund API",
+      "url": "https://github.com/tbdavid2019/ai-hedge-fund-API"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:6000",
+      "description": "本地開發伺服器"
+    }
+  ],
+  "paths": {
+    "/api/analysis": {
+      "post": {
+        "tags": ["Analysis"],
+        "summary": "執行股票分析",
+        "description": "使用 AI 分析師對指定股票進行投資分析，返回投資建議和決策。",
+        "operationId": "runAnalysis",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisRequest"
+              },
+              "examples": {
+                "single_stock": {
+                  "summary": "單一股票分析",
+                  "value": {
+                    "tickers": "TSLA",
+                    "selectedAnalysts": ["warren_buffett", "peter_lynch"],
+                    "modelName": "gpt-4o"
+                  }
+                },
+                "multiple_stocks": {
+                  "summary": "多股票分析",
+                  "value": {
+                    "tickers": "TSLA,NVDA,AAPL",
+                    "selectedAnalysts": ["warren_buffett", "charlie_munger", "technical_analyst"],
+                    "modelName": "gpt-4o",
+                    "initialCash": 100000,
+                    "startDate": "2024-09-01",
+                    "endDate": "2024-12-01"
+                  }
+                },
+                "all_analysts": {
+                  "summary": "使用全部分析師",
+                  "value": {
+                    "tickers": "NVDA",
+                    "selectedAnalysts": [],
+                    "modelName": "gpt-4o"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "分析成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "伺服器錯誤",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "健康檢查",
+        "description": "檢查 API 伺服器是否正常運行",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "伺服器正常",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    },
+                    "timestamp": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AnalysisRequest": {
+        "type": "object",
+        "required": ["tickers", "modelName"],
+        "properties": {
+          "tickers": {
+            "type": "string",
+            "description": "股票代碼，多個用逗號分隔",
+            "example": "TSLA,NVDA,AAPL"
+          },
+          "selectedAnalysts": {
+            "type": "array",
+            "description": "選擇的分析師列表，空陣列表示使用全部",
+            "items": {
+              "type": "string",
+              "enum": [
+                "ben_graham",
+                "bill_ackman",
+                "cathie_wood",
+                "charlie_munger",
+                "michael_burry",
+                "peter_lynch",
+                "phil_fisher",
+                "nancy_pelosi",
+                "warren_buffett",
+                "wsb",
+                "technical_analyst",
+                "fundamentals_analyst",
+                "sentiment_analyst",
+                "valuation_analyst"
+              ]
+            },
+            "example": ["warren_buffett", "peter_lynch"]
+          },
+          "modelName": {
+            "type": "string",
+            "description": "使用的 LLM 模型",
+            "enum": ["gpt-4o", "gpt-4o-mini", "claude-3-5-sonnet-20241022", "gemini-2.0-flash", "llama3-70b-8192"],
+            "example": "gpt-4o"
+          },
+          "initialCash": {
+            "type": "number",
+            "description": "初始現金（預設：100000）",
+            "default": 100000,
+            "example": 100000
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "分析起始日期（預設：結束日期前 3 個月）",
+            "example": "2024-09-01"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "分析結束日期（預設：今天）",
+            "example": "2024-12-01"
+          }
+        }
+      },
+      "AnalysisResponse": {
+        "type": "object",
+        "properties": {
+          "analyst_signals": {
+            "type": "object",
+            "description": "各分析師的分析結果，按分析師和股票代碼分組",
+            "example": {
+              "warren_buffett_agent": {
+                "TSLA": {
+                  "signal": "bearish",
+                  "confidence": 85.0,
+                  "reasoning": "基於價值投資原則分析..."
+                }
+              },
+              "risk_management_agent": {
+                "TSLA": {
+                  "current_price": 430.17,
+                  "remaining_position_limit": 50000.0,
+                  "reasoning": {
+                    "available_cash": 100000.0,
+                    "position_limit_pct": "50%"
+                  }
+                }
+              }
+            }
+          },
+          "decisions": {
+            "type": "object",
+            "description": "最終投資決策，按股票代碼分組",
+            "example": {
+              "TSLA": {
+                "action": "short",
+                "quantity": 46,
+                "confidence": 85.0,
+                "reasoning": "多數分析師看空..."
+              }
+            }
+          }
+        }
+      },
+      "AnalystSignal": {
+        "type": "object",
+        "properties": {
+          "signal": {
+            "type": "string",
+            "enum": ["bullish", "bearish", "neutral"],
+            "description": "投資信號"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "信心度百分比"
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "分析理由"
+          }
+        }
+      },
+      "Decision": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["buy", "sell", "short", "cover", "hold"],
+            "description": "投資動作"
+          },
+          "quantity": {
+            "type": "integer",
+            "description": "交易數量（股數）"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "決策信心度"
+          },
+          "reasoning": {
+            "type": "string",
+            "description": "決策理由"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "錯誤訊息"
+          },
+          "traceback": {
+            "type": "string",
+            "description": "錯誤堆疊追蹤"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Analysis",
+      "description": "股票分析相關 API"
+    },
+    {
+      "name": "Health",
+      "description": "伺服器健康檢查"
+    }
+  ]
+}

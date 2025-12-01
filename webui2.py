@@ -23,7 +23,7 @@ DISCORD_WEBHOOK_ENABLED = os.environ.get("DISCORD_WEBHOOK_ENABLED", "false").low
 DISCORD_WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL", "")
 
 # 設置 Flask 伺服器
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 CORS(app, resources={r"/*": {"origins": "*"}})  # 允許跨域請求
 sock = Sock(app)
 
@@ -138,6 +138,50 @@ def broadcast_log(message, level="info"):
             client.send(json.dumps(log_data))
         except Exception:
             websocket_clients.remove(client)
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """健康檢查端點"""
+    return jsonify({
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    })
+
+@app.route('/docs')
+def swagger_ui():
+    """Swagger UI 文檔頁面"""
+    return '''
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Hedge Fund API - Swagger UI</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui.css">
+    <style>
+        body { margin: 0; padding: 0; }
+        .swagger-ui .topbar { display: none; }
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.9.0/swagger-ui-bundle.js"></script>
+    <script>
+        window.onload = function() {
+            SwaggerUIBundle({
+                url: "/static/swagger.json",
+                dom_id: '#swagger-ui',
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout"
+            });
+        };
+    </script>
+</body>
+</html>
+'''
 
 @app.route('/api/analysis', methods=['POST'])
 def run_analysis():

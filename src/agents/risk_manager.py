@@ -15,6 +15,20 @@ def risk_management_agent(state: AgentState):
     # Initialize risk analysis for each ticker
     risk_analysis = {}
     current_prices = {}  # Store prices here to avoid redundant API calls
+    
+    # 根據標的物數量動態計算每個標的物的投資上限比例
+    # 1個標的 = 100%, 2個 = 50%, 3個 = 33%, 4個 = 25%, 5+個 = 20%
+    num_tickers = len(tickers)
+    if num_tickers == 1:
+        position_limit_ratio = 1.0  # 100%
+    elif num_tickers == 2:
+        position_limit_ratio = 0.5  # 50%
+    elif num_tickers == 3:
+        position_limit_ratio = 0.33  # 33%
+    elif num_tickers == 4:
+        position_limit_ratio = 0.25  # 25%
+    else:
+        position_limit_ratio = 0.20  # 20% (5個以上)
 
     for ticker in tickers:
         progress.update_status("risk_management_agent", ticker, "Analyzing price data")
@@ -43,8 +57,9 @@ def risk_management_agent(state: AgentState):
         # Calculate total portfolio value using stored prices
         total_portfolio_value = portfolio.get("cash", 0) + sum(portfolio.get("cost_basis", {}).get(t, 0) for t in portfolio.get("cost_basis", {}))
 
-        # Base limit is 20% of portfolio for any single position
-        position_limit = total_portfolio_value * 0.20
+        # 根據標的物數量動態計算投資上限
+        # Dynamic position limit based on number of tickers
+        position_limit = total_portfolio_value * position_limit_ratio
 
         # For existing positions, subtract current position value from limit
         remaining_position_limit = position_limit - current_position_value
