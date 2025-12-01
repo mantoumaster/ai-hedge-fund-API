@@ -37,3 +37,15 @@ curl -X POST "http://localhost:6000/api/analysis" \
            "modelName": "gpt-4o"
          }'
 
+
+## 測試yfinance腳本
+docker exec -it 77e3c252e42b bash
+python - <<'PY'
+import yfinance as yf
+t = yf.Ticker("NVDA")
+print("info", bool(t.info))
+print("financials empty?", t.financials.empty)
+print("income_stmt empty?", t.income_stmt.empty)
+print("balance_sheet empty?", t.balance_sheet.empty)
+print("cashflow empty?", t.cashflow.empty)
+PY

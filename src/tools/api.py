@@ -323,10 +323,16 @@ def get_financial_metrics(
     
     yf_ticker_str = _format_ticker_for_yfinance(ticker)
     
+    # Normalize end_date to string format
+    if isinstance(end_date, datetime):
+        end_date_str = end_date.strftime('%Y-%m-%d')
+    else:
+        end_date_str = str(end_date)[:10]  # Ensure it's YYYY-MM-DD format
+    
     # Check cache first
     if cached_data := _cache.get_financial_metrics(ticker):
         # Filter cached data by date and limit
-        filtered_data = [FinancialMetrics(**metric) for metric in cached_data if metric["report_period"] <= end_date]
+        filtered_data = [FinancialMetrics(**metric) for metric in cached_data if metric["report_period"] <= end_date_str]
         filtered_data.sort(key=lambda x: x.report_period, reverse=True)
         if filtered_data:
             return filtered_data[:limit]
@@ -346,12 +352,28 @@ def get_financial_metrics(
         quarterly_balance_sheet = yf_ticker.quarterly_balance_sheet
         quarterly_cashflow = yf_ticker.quarterly_cashflow
         
-        # Combine data sources based on available dates
-        all_dates = set()
-        for df in [financial_data, balance_sheet, cash_flow, 
-                  quarterly_financials, quarterly_balance_sheet, quarterly_cashflow]:
-            if not df.empty:
-                all_dates.update(df.columns)
+        # Helper function to get value from annual or quarterly data
+        def get_value_with_fallback(annual_df, quarterly_df, field_name, date):
+            """Try annual data first, then fall back to quarterly data."""
+            value = get_value_from_df(annual_df, field_name, date)
+            if value is None and quarterly_df is not None and not quarterly_df.empty:
+                value = get_value_from_df(quarterly_df, field_name, date)
+            return value
+        
+        # Use only annual data dates for consistency (if period is annual)
+        # For quarterly or TTM, include quarterly dates
+        if period == "annual":
+            all_dates = set()
+            for df in [financial_data, balance_sheet, cash_flow]:
+                if df is not None and not df.empty:
+                    all_dates.update(df.columns)
+        else:
+            # Include quarterly data for other periods
+            all_dates = set()
+            for df in [financial_data, balance_sheet, cash_flow, 
+                      quarterly_financials, quarterly_balance_sheet, quarterly_cashflow]:
+                if df is not None and not df.empty:
+                    all_dates.update(df.columns)
         
         # Sort dates in descending order
         sorted_dates = sorted(all_dates, reverse=True)
@@ -363,7 +385,7 @@ def get_financial_metrics(
                 break
                 
             report_date = date.strftime('%Y-%m-%d')
-            if report_date > end_date:
+            if report_date > end_date_str:
                 continue
                 
             # Gather metrics that we can calculate
@@ -377,23 +399,25 @@ def get_financial_metrics(
                 pb_ratio = info.get('priceToBook')
                 ps_ratio = info.get('priceToSalesTrailing12Months')
                 
-                # Get financial data for this period if available
-                net_income = get_value_from_df(financial_data, 'Net Income', date)
-                total_revenue = get_value_from_df(financial_data, 'Total Revenue', date)
+                # Get financial data for this period if available (with fallback to quarterly)
+                net_income = get_value_with_fallback(financial_data, quarterly_financials, 'Net Income', date)
+                total_revenue = get_value_with_fallback(financial_data, quarterly_financials, 'Total Revenue', date)
                 
-                # Balance sheet items
-                total_assets = get_value_from_df(balance_sheet, 'Total Assets', date)
-                total_liabilities = get_value_from_df(balance_sheet, 'Total Liabilities Net Minority Interest', date)
+                # Balance sheet items (with fallback to quarterly)
+                total_assets = get_value_with_fallback(balance_sheet, quarterly_balance_sheet, 'Total Assets', date)
+                total_liabilities = get_value_with_fallback(balance_sheet, quarterly_balance_sheet, 'Total Liabilities Net Minority Interest', date)
                 total_equity = total_assets - total_liabilities if total_assets and total_liabilities else None
                 
-                # Cash flow items
-                operating_cash_flow = get_value_from_df(cash_flow, 'Operating Cash Flow', date)
-                capital_expenditure = get_value_from_df(cash_flow, 'Capital Expenditure', date)
+                # Cash flow items (with fallback to quarterly)
+                operating_cash_flow = get_value_with_fallback(cash_flow, quarterly_cashflow, 'Operating Cash Flow', date)
+                capital_expenditure = get_value_with_fallback(cash_flow, quarterly_cashflow, 'Capital Expenditure', date)
                 free_cash_flow = operating_cash_flow + capital_expenditure if operating_cash_flow and capital_expenditure else None
                 
                 # Calculate derived metrics
-                gross_margin = get_value_from_df(financial_data, 'Gross Profit', date) / total_revenue if total_revenue else None
-                operating_margin = get_value_from_df(financial_data, 'Operating Income', date) / total_revenue if total_revenue else None
+                gross_profit = get_value_with_fallback(financial_data, quarterly_financials, 'Gross Profit', date)
+                gross_margin = gross_profit / total_revenue if gross_profit and total_revenue else None
+                operating_income = get_value_with_fallback(financial_data, quarterly_financials, 'Operating Income', date)
+                operating_margin = operating_income / total_revenue if operating_income and total_revenue else None
                 net_margin = net_income / total_revenue if net_income and total_revenue else None
                 
                 # Return ratios
@@ -401,8 +425,8 @@ def get_financial_metrics(
                 return_on_assets = net_income / total_assets if net_income and total_assets else None
                 
                 # Liquidity ratios
-                current_assets = get_value_from_df(balance_sheet, 'Current Assets', date)
-                current_liabilities = get_value_from_df(balance_sheet, 'Current Liabilities', date)
+                current_assets = get_value_with_fallback(balance_sheet, quarterly_balance_sheet, 'Current Assets', date)
+                current_liabilities = get_value_with_fallback(balance_sheet, quarterly_balance_sheet, 'Current Liabilities', date)
                 current_ratio = current_assets / current_liabilities if current_assets and current_liabilities else None
                 
                 # Debt ratios
@@ -411,8 +435,8 @@ def get_financial_metrics(
                 # Growth metrics (calculate if previous period available)
                 prev_date = sorted_dates[i+1] if i+1 < len(sorted_dates) else None
                 if prev_date:
-                    prev_revenue = get_value_from_df(financial_data, 'Total Revenue', prev_date)
-                    prev_net_income = get_value_from_df(financial_data, 'Net Income', prev_date)
+                    prev_revenue = get_value_with_fallback(financial_data, quarterly_financials, 'Total Revenue', prev_date)
+                    prev_net_income = get_value_with_fallback(financial_data, quarterly_financials, 'Net Income', prev_date)
                     
                     revenue_growth = (total_revenue / prev_revenue - 1) if total_revenue and prev_revenue else None
                     earnings_growth = (net_income / prev_net_income - 1) if net_income and prev_net_income else None
