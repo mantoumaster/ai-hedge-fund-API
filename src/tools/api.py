@@ -664,6 +664,9 @@ def search_line_items(
                 "period": period,
                 "currency": info.get('currency', 'USD'),
             }
+            # Initialize all requested line items to None to avoid missing attributes
+            for item in line_items:
+                line_item_data.setdefault(item, None)
             
             # Map requested line items to financial statement items
             line_item_mapping = {
