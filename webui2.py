@@ -148,6 +148,7 @@ def health_check():
     })
 
 @app.route('/docs')
+@app.route('/swagger')
 def swagger_ui():
     """Swagger UI 文檔頁面"""
     return '''
