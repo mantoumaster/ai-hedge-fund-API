@@ -74,6 +74,10 @@ class LineItem(BaseModel):
     # Allow additional fields dynamically
     model_config = {"extra": "allow"}
 
+    def __getattr__(self, item):
+        # Return None for missing dynamic attributes to keep agents resilient to sparse data
+        return None
+
 
 class LineItemResponse(BaseModel):
     search_results: list[LineItem]
