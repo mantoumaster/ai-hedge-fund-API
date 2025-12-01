@@ -674,8 +674,13 @@ def search_line_items(
                 "operating_margin": (None, None),  # Will calculate from Operating Income / Revenue
                 "return_on_invested_capital": (None, None),  # Will calculate
                 "free_cash_flow": (None, None),  # Will calculate from OCF - CapEx
+                "earnings_per_share": ("Diluted EPS", income_stmt),  # Fallback to net income/shares later
+                "ebit": ("Ebit", income_stmt),
+                "ebitda": ("Ebitda", income_stmt),
                 "cash_and_equivalents": ("Cash And Cash Equivalents", balance_sheet),
                 "total_debt": ("Total Debt", balance_sheet),
+                "current_assets": ("Current Assets", balance_sheet),
+                "current_liabilities": ("Current Liabilities", balance_sheet),
                 "total_assets": ("Total Assets", balance_sheet),
                 "total_liabilities": ("Total Liabilities Net Minority Interest", balance_sheet),
                 "shareholders_equity": ("Stockholders Equity", balance_sheet),
@@ -718,8 +723,29 @@ def search_line_items(
                         capex = get_value_from_df(cash_flow, "Capital Expenditure", date)
                         if ocf and capex:
                             line_item_data[item] = ocf + capex  # CapEx is usually negative
+                        elif ocf:
+                            line_item_data[item] = ocf
+                    
+                    elif item == "earnings_per_share":
+                        net_income = get_value_from_df(income_stmt, "Net Income", date)
+                        shares_outstanding = info.get("sharesOutstanding")
+                        eps_from_income = get_value_from_df(income_stmt, "Diluted EPS", date) or get_value_from_df(income_stmt, "Basic EPS", date)
+                        if eps_from_income is not None:
+                            line_item_data[item] = eps_from_income
+                        elif net_income and shares_outstanding:
+                            line_item_data[item] = net_income / shares_outstanding
                         else:
                             line_item_data[item] = None
+
+                    elif item == "ebit":
+                        ebit = get_value_from_df(income_stmt, "Ebit", date) or get_value_from_df(income_stmt, "EBIT", date)
+                        if ebit is not None:
+                            line_item_data[item] = ebit
+
+                    elif item == "ebitda":
+                        ebitda = get_value_from_df(income_stmt, "Ebitda", date) or get_value_from_df(income_stmt, "EBITDA", date)
+                        if ebitda is not None:
+                            line_item_data[item] = ebitda
                     
                     elif item == "working_capital":
                         current_assets = get_value_from_df(balance_sheet, "Current Assets", date)
