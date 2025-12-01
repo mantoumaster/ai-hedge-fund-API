@@ -87,8 +87,15 @@ python webui2.py --api
 
 ### **📚 API 文檔**
 啟動服務後，可訪問 Swagger UI 查看完整 API 文檔：
-- **Swagger UI**: [http://localhost:6000/docs](http://localhost:6000/docs)
+- **Swagger UI**: [http://localhost:6000/swagger](http://localhost:6000/swagger)
 - **健康檢查**: [http://localhost:6000/api/health](http://localhost:6000/api/health)
+
+### **🔗 Docker Hub 映像**
+預建的 Docker 映像可直接從 Docker Hub 拉取：
+```bash
+docker pull tbdavid2019/ai-hedge-fund-api:latest
+docker run --env-file .env -p 6000:6000 tbdavid2019/ai-hedge-fund-api:latest
+```
 
 ## 🤖 **可用的 AI 投資分析師**
 
